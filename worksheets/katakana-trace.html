@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Katakana tracing worksheet</title>
+<link rel="stylesheet" href="worksheet.css"></head>
+<body>
+<div class="toolbar">
+  <b>Katakana tracing worksheet</b>
+  <label>Set
+    <select id="set">
+      <option value="base">Base 46</option>
+      <option value="dakuten">Dakuten / handakuten</option>
+      <option value="yoon">Yōon (ャュョ)</option>
+      <option value="confuse">Confusion pairs only</option>
+      <option value="all">Everything</option>
+    </select></label>
+  <label>Traces <select id="tr"><option>2</option><option selected>3</option><option>4</option><option>5</option></select></label>
+  <button id="reb">Rebuild</button>
+  <button class="p" onclick="window.print()">Print / Save as PDF</button>
+</div>
+
+<div class="sheet">
+  <h1>カタカナ — tracing and production</h1>
+  <div class="meta">Name <span></span> Date <span></span> Minutes <span></span> Errors <span></span></div>
+  <p class="note">Dark = model, trace the two light copies, then write the rest from memory with the
+    model covered. Stroke order: top to bottom, left to right, horizontal before vertical. If a shape
+    comes out wrong, stop and re-read the mnemonic in the label rather than repeating the error —
+    a traced mistake is still a motor trace.</p>
+  <div id="out"></div>
+</div>
+
+<script src="../data/kana.js"></script>
+<script>
+const ROWS = { base:['vowels','k','s','t','n','h','m','y','r','w','n-final'],
+  dakuten:['dakuten','handakuten'], yoon:['yoon'] };
+function build(){
+  const set = document.getElementById('set').value;
+  const traces = +document.getElementById('tr').value;
+  let list;
+  if (set === 'all') list = window.KANA;
+  else if (set === 'confuse') list = window.KANA.filter(k => k.confuse && k.confuse.length >= 2);
+  else list = window.KANA.filter(k => ROWS[set].indexOf(k.row) >= 0);
+
+  const TOTAL = 10;
+  let html = '';
+  list.forEach((k, i) => {
+    let boxes = '<div class="bx model"><div class="g">' + k.kana + '</div></div>';
+    for (let t = 0; t < traces; t++)
+      boxes += '<div class="bx ' + (t === traces - 1 ? 'faint' : 'trace') + '"><div class="g">' + k.kana + '</div></div>';
+    for (let b = 0; b < TOTAL - 1 - traces; b++) boxes += '<div class="bx blank"><div class="g"></div></div>';
+    const conf = k.confuse && k.confuse.length ? ' ⚠ ' + k.confuse.join(' ') : '';
+    html += '<div class="trow"><div class="label"><b>' + k.romaji + '</b>' +
+      (k.hira ? '<i>hira ' + k.hira + conf + '</i>' : '') + '</div><div class="boxes">' + boxes + '</div></div>';
+    if ((i + 1) % 11 === 0) html += '<div class="pagebreak"></div>';
+  });
+
+  html += '<h2>Free writing — ten words from dictation or memory</h2><div class="gy">' +
+    Array.from({length:60}, () => '<div></div>').join('') + '</div>';
+  html += '<h2>Loanword production — write these in katakana</h2>';
+  const words = window.LOANWORDS.slice(0, 12);
+  html += words.map(w => '<div class="trow"><div class="label" style="width:40mm;flex:0 0 40mm;padding-top:5mm"><b>' +
+    w.en + '</b></div><div class="boxes">' +
+    Array.from({length:9}, () => '<div class="bx blank"><div class="g"></div></div>').join('') +
+    '</div></div>').join('');
+  document.getElementById('out').innerHTML = html;
+}
+document.getElementById('reb').onclick = build;
+document.getElementById('set').onchange = build;
+document.getElementById('tr').onchange = build;
+build();
+</script>
+</body></html>

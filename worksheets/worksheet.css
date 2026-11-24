@@ -1,0 +1,51 @@
+/* Print-first. A4, black on white, no dependencies.
+   Font stack leads with UD Digi Kyokasho — the Japanese school textbook font shipped with
+   Windows 11. It renders HANDWRITTEN letterforms, not print forms. That matters: tracing a
+   print-form 書 teaches you shapes no Japanese person writes. */
+@page { size: A4 portrait; margin: 12mm 12mm 14mm; }
+:root{ --jp:"UD Digi Kyokasho N-R","UD Digi Kyokasho NK-R","Yu Mincho","YuMincho",
+       "Hiragino Mincho ProN","MS Mincho",serif; --rule:#c9c9c9; --light:#d8d8d8; --mid:#9a9a9a; }
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:#111;font:13px/1.5 "Inter","Segoe UI",system-ui,sans-serif}
+.sheet{width:186mm;margin:0 auto;padding:6mm 0}
+.toolbar{position:sticky;top:0;background:#111;color:#fff;padding:9px 14px;display:flex;gap:10px;
+  align-items:center;font-size:13px;z-index:9}
+.toolbar b{font-weight:600;margin-right:auto}
+.toolbar button,.toolbar select{font:inherit;background:#2a2a2a;color:#fff;border:1px solid #444;
+  border-radius:5px;padding:5px 11px;cursor:pointer}
+.toolbar button.p{background:#d94f3d;border-color:#d94f3d;font-weight:600}
+h1{font-size:17px;margin:0 0 2px;font-weight:650}
+.meta{font-size:11px;color:#666;margin-bottom:10px;display:flex;gap:16px}
+.meta span{border-bottom:1px solid #bbb;min-width:90px}
+.note{font-size:10.5px;color:#555;border-left:2px solid #d94f3d;padding-left:8px;margin:0 0 12px}
+
+/* a tracing row */
+.trow{display:flex;align-items:stretch;border-bottom:1px solid var(--rule);
+  page-break-inside:avoid;break-inside:avoid}
+.trow .label{width:30mm;flex:0 0 30mm;padding:4mm 2mm 2mm 0;font-size:10.5px;color:#444;line-height:1.35}
+.trow .label b{font-size:13px;display:block;color:#111}
+.trow .label i{font-style:normal;color:#777;font-size:9.5px;display:block;margin-top:2px}
+.boxes{display:flex;flex:1}
+.bx{flex:1;aspect-ratio:1/1;border-left:1px solid var(--rule);position:relative;
+  display:grid;place-items:center}
+.bx::before,.bx::after{content:"";position:absolute;background:#eee}
+.bx::before{left:0;right:0;top:50%;height:1px}
+.bx::after{top:0;bottom:0;left:50%;width:1px}
+.bx .g{font-family:var(--jp);font-size:13mm;line-height:1;position:relative;z-index:1}
+.bx.model .g{color:#111}
+.bx.trace .g{color:var(--light)}
+.bx.faint .g{color:#ebebeb}
+.bx.blank .g{display:none}
+
+/* genkouyoushi — sentence writing grid */
+.gy{display:grid;grid-template-columns:repeat(10,1fr);border-top:1px solid var(--rule);
+  border-left:1px solid var(--rule);page-break-inside:avoid}
+.gy div{aspect-ratio:1/1;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);
+  position:relative}
+.gy div::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:#f2f2f2}
+.gy div::after{content:"";position:absolute;top:0;bottom:0;left:50%;width:1px;background:#f2f2f2}
+.gy.prefill div{font-family:var(--jp);font-size:12mm;line-height:1;display:grid;place-items:center;
+  color:var(--light)}
+h2{font-size:12.5px;margin:14px 0 6px;font-weight:650;text-transform:uppercase;letter-spacing:.07em;color:#333}
+.pagebreak{page-break-after:always;break-after:page}
+@media print{ .toolbar{display:none} .sheet{padding:0} body{font-size:12px} }

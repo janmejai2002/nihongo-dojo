@@ -1,0 +1,17 @@
+# Personal learning state — never committed to a public repo.
+learner/progress.json
+learner/log.md
+learner/profile.md
+nihongo-progress-*.json
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Build/test scratch
+node_modules/
+*.log

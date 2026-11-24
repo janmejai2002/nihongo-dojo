@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kanji tracing worksheet</title>
+<link rel="stylesheet" href="worksheet.css"></head>
+<body>
+<div class="toolbar">
+  <b>Kanji tracing worksheet</b>
+  <label>From <input id="from" type="number" value="1" min="1" style="width:56px"></label>
+  <label>To <input id="to" type="number" value="20" min="1" style="width:56px"></label>
+  <label>Traces <select id="tr"><option>2</option><option selected>3</option><option>4</option></select></label>
+  <label><input type="checkbox" id="mn" checked> show mnemonics</label>
+  <button id="reb">Rebuild</button>
+  <button class="p" onclick="window.print()">Print / Save as PDF</button>
+</div>
+
+<div class="sheet">
+  <h1>漢字 — tracing, components and production</h1>
+  <div class="meta">Name <span></span> Date <span></span> Range <span id="rng"></span> Errors <span></span></div>
+  <p class="note">Before you trace a character, say its component keywords aloud, then the mnemonic,
+    then the keyword. Hand, mouth and eye together — three encoding channels on one pass. Stroke order
+    is not decoration: it determines how the character comes out when you write it fast, and it is how
+    a dictionary finds it. Top-to-bottom, left-to-right, horizontal before crossing vertical,
+    enclosing box before its contents, bottom stroke of a box last.</p>
+  <div id="out"></div>
+</div>
+
+<script src="../data/kanji.js"></script>
+<script>
+function build(){
+  const a = Math.max(1, +document.getElementById('from').value);
+  const b = Math.min(window.KANJI.length, +document.getElementById('to').value);
+  const traces = +document.getElementById('tr').value;
+  const showMn = document.getElementById('mn').checked;
+  document.getElementById('rng').textContent = a + '–' + b;
+  const list = window.KANJI.slice(a - 1, b);
+  const TOTAL = 8;
+  let html = '';
+  list.forEach((k, i) => {
+    let boxes = '<div class="bx model"><div class="g">' + k.char + '</div></div>';
+    for (let t = 0; t < traces; t++)
+      boxes += '<div class="bx ' + (t === traces - 1 ? 'faint' : 'trace') + '"><div class="g">' + k.char + '</div></div>';
+    for (let j = 0; j < TOTAL - 1 - traces; j++) boxes += '<div class="bx blank"><div class="g"></div></div>';
+    html += '<div class="trow"><div class="label" style="width:52mm;flex:0 0 52mm">' +
+      '<b>' + k.keyword + '</b>' +
+      '<i>' + k.components.join(' ') + ' · ' + k.strokes + ' strokes</i>' +
+      '<i>' + (k.on.join('・') || '—') + ' / ' + (k.kun.join('・') || '—') + '</i>' +
+      (showMn ? '<i style="color:#555;margin-top:3px">' + k.mnemonic + '</i>' : '') +
+      '</div><div class="boxes">' + boxes + '</div></div>';
+    if ((i + 1) % 7 === 0 && i + 1 < list.length) html += '<div class="pagebreak"></div>';
+  });
+
+  html += '<div class="pagebreak"></div><h1>Word production</h1>' +
+    '<p class="note">Cover the right column. Write each word from its English meaning, in kanji, in the grid.</p>';
+  list.forEach(k => {
+    (k.words || []).slice(0, 2).forEach(w => {
+      const bare = w.jp.replace(/\[[^\]]*\]/g, '');
+      html += '<div class="trow"><div class="label" style="width:58mm;flex:0 0 58mm;padding-top:4mm">' +
+        '<b>' + w.en + '</b><i>' + w.reading + '</i></div><div class="boxes">' +
+        Array.from({length:6}, () => '<div class="bx blank"><div class="g"></div></div>').join('') +
+        '<div class="bx faint" style="flex:1.6"><div class="g" style="font-size:11mm">' + bare + '</div></div>' +
+        '</div></div>';
+    });
+  });
+
+  html += '<div class="pagebreak"></div><h1>Sentence writing</h1>' +
+    '<p class="note">Write five original sentences using the kanji above. Vertical grid, one character ' +
+    'per box, left to right. Punctuation gets its own box. This is the production block — it is the ' +
+    'part that converts recognition into usable knowledge.</p>' +
+    '<div class="gy">' + Array.from({length:140}, () => '<div></div>').join('') + '</div>';
+  document.getElementById('out').innerHTML = html;
+}
+['reb'].forEach(id => document.getElementById(id).onclick = build);
+['from','to','tr','mn'].forEach(id => document.getElementById(id).onchange = build);
+build();
+</script>
+</body></html>

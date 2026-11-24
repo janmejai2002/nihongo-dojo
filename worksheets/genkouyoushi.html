@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Genkōyōshi — blank writing grid</title>
+<link rel="stylesheet" href="worksheet.css"></head>
+<body>
+<div class="toolbar">
+  <b>原稿用紙 — blank composition grid</b>
+  <label>Pages <select id="pg"><option selected>1</option><option>2</option><option>3</option><option>5</option></select></label>
+  <label>Columns <select id="cols"><option>8</option><option selected>10</option><option>12</option></select></label>
+  <button class="p" onclick="window.print()">Print / Save as PDF</button>
+</div>
+<div class="sheet" id="out"></div>
+<script>
+function build(){
+  const pages = +document.getElementById('pg').value;
+  const cols = +document.getElementById('cols').value;
+  let html = '';
+  for (let p = 0; p < pages; p++) {
+    html += '<h1>原稿用紙</h1><div class="meta">Date <span></span> Topic <span style="min-width:200px"></span></div>';
+    html += '<div class="gy" style="grid-template-columns:repeat(' + cols + ',1fr)">' +
+      Array.from({length: cols * 14}, () => '<div></div>').join('') + '</div>';
+    if (p < pages - 1) html += '<div class="pagebreak"></div>';
+  }
+  document.getElementById('out').innerHTML = html;
+}
+document.getElementById('pg').onchange = build;
+document.getElementById('cols').onchange = build;
+build();
+</script>
+</body></html>

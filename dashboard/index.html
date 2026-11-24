@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>日本語道場 — Nihongo Dojo</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <nav>
+    <div class="brand">日本語道場<small>nihongo dojo</small></div>
+    <div class="navs">
+      <button data-v="today" class="on">今日 <span>Today</span></button>
+      <button data-v="placement">診断 <span>Placement</span></button>
+      <button data-v="review">復習 <span>Review</span> <span class="badge" id="dueBadge"></span></button>
+      <button data-v="kana">カナ <span>Katakana</span></button>
+      <button data-v="kanji">漢字 <span>Kanji</span></button>
+      <button data-v="vocab">単語 <span>Vocabulary</span></button>
+      <button data-v="grammar">文法 <span>Grammar</span></button>
+      <button data-v="progress">進捗 <span>Progress</span></button>
+      <button data-v="plan">計画 <span>Plan</span></button>
+    </div>
+    <div class="foot">Sprint 1 of 16<br>N3 · Dec 2027</div>
+  </nav>
+  <main id="main"></main>
+</div>
+
+<script src="../data/kana.js"></script>
+<script src="../data/placement.js"></script>
+<script src="../data/kanji.js"></script>
+<script src="../data/vocab.js"></script>
+<script src="../data/grammar.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
