@@ -35,8 +35,8 @@ curriculum it says so instead of congratulating you.
 ## Install (Windows)
 
 ```powershell
-git clone https://github.com/<you>/nihongo.git
-cd nihongo
+git clone https://github.com/janmejai2002/nihongo-dojo.git
+cd nihongo-dojo
 .\install.ps1
 ```
 
