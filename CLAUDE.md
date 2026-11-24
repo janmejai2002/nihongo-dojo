@@ -62,6 +62,14 @@ These are the rules I design every piece of material by. Do not silently drop on
 - **English glosses are short and concrete.** One to four words. Nuance goes in a `note` field.
 - **Every sentence must be natural.** If a sentence exists only to demonstrate a pattern and no
   Japanese person would say it, rewrite it.
+- **The handwriting pad is the touchscreen counterpart of the worksheets.** It ghosts the model,
+  draws with pen pressure, and checks stroke count — the only objective signal available without
+  shipping a recogniser, and deliberately the only automated judgement made. Never add a
+  handwriting recogniser that marks correct characters wrong; a drill the learner stops trusting
+  is worse than no drill.
+- **Audio is synthesised locally, or it is absent and says so.** No bundled audio files, no API
+  calls. If no Japanese voice is installed the UI explains how to add one rather than failing
+  silently. Real native audio enters via the listening ladder from Sprint 5.
 - **Worksheets are print-first.** A4, @page margins set, pure HTML/CSS, zero dependencies, open in
   a browser and Ctrl+P → "Save as PDF". Font stack leads with `UD Digi Kyokasho N-R` (the Japanese
   textbook handwriting font shipped with Windows 11) so traced shapes match handwritten forms,

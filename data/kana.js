@@ -81,22 +81,48 @@ const YOON_BASE = { "キ":"ky","シ":"sh","チ":"ch","ニ":"ny","ヒ":"hy","ミ"
 const YOON_HIRA = { "キ":"き","シ":"し","チ":"ち","ニ":"に","ヒ":"ひ","ミ":"み","リ":"り",
   "ギ":"ぎ","ジ":"じ","ビ":"び","ピ":"ぴ" };
 
+// Stroke counts. These drive the handwriting canvas's one objective check: if you drew the
+// wrong number of strokes you have a stroke-order fault, and that is a fact rather than an
+// opinion. Dakuten adds 2 (the two ticks), handakuten adds 1 (the circle).
+const STROKES = {
+  "ア":2,"イ":2,"ウ":3,"エ":3,"オ":3, "カ":2,"キ":3,"ク":2,"ケ":3,"コ":2,
+  "サ":3,"シ":3,"ス":2,"セ":2,"ソ":2, "タ":3,"チ":3,"ツ":3,"テ":3,"ト":2,
+  "ナ":2,"ニ":2,"ヌ":2,"ネ":4,"ノ":1, "ハ":2,"ヒ":2,"フ":1,"ヘ":1,"ホ":4,
+  "マ":2,"ミ":3,"ム":2,"メ":2,"モ":3, "ヤ":2,"ユ":2,"ヨ":3,
+  "ラ":2,"リ":2,"ル":2,"レ":1,"ロ":3, "ワ":2,"ヲ":3,"ン":2
+};
+const SMALL_STROKES = { "ャ":2, "ュ":2, "ョ":3 };
+
+// A voiced yoon base such as ジ is a precomposed character, so it is not in STROKES directly:
+// resolve it back through DAKUTEN_MAP (シ -> ジ) and add the two ticks.
+function baseStrokes(ch) {
+  if (STROKES[ch]) return STROKES[ch];
+  for (const [plain, voiced] of Object.entries(DAKUTEN_MAP)) {
+    if (voiced === ch) return (STROKES[plain] || 0) + 2;
+  }
+  for (const [plain, p] of Object.entries(HANDAKUTEN_MAP)) {
+    if (p === ch) return (STROKES[plain] || 0) + 1;
+  }
+  return 0;
+}
+
 function buildKana() {
   const out = [];
   for (const [kana, romaji, row, hira, mnemonic, confuse] of KATAKANA_BASE) {
-    out.push({ id: "ka-" + romaji, kana, romaji, row, type: "katakana", hira, mnemonic, confuse });
+    out.push({ id: "ka-" + romaji, kana, romaji, row, type: "katakana", hira, mnemonic, confuse,
+      strokes: STROKES[kana] || 0 });
   }
   for (const [base, d] of Object.entries(DAKUTEN_MAP)) {
     out.push({ id: "ka-" + DAKUTEN_ROMAJI[d] + "-d", kana: d, romaji: DAKUTEN_ROMAJI[d],
       row: "dakuten", type: "katakana", hira: HIRA_DAKUTEN[d],
       mnemonic: base + " + two ticks. Voiced: the same mouth shape with the throat switched on.",
-      confuse: [base] });
+      confuse: [base], strokes: (STROKES[base] || 0) + 2 });
   }
   for (const [base, h] of Object.entries(HANDAKUTEN_MAP)) {
     out.push({ id: "ka-" + DAKUTEN_ROMAJI[h] + "-h", kana: h, romaji: DAKUTEN_ROMAJI[h],
       row: "handakuten", type: "katakana", hira: HIRA_DAKUTEN[h],
       mnemonic: base + " + a small circle. Only the H-row takes the circle — that is the whole rule.",
-      confuse: [base, DAKUTEN_MAP[base]] });
+      confuse: [base, DAKUTEN_MAP[base]], strokes: (STROKES[base] || 0) + 1 });
   }
   const smalls = [["ャ","a","ゃ"],["ュ","u","ゅ"],["ョ","o","ょ"]];
   for (const [base, pre] of Object.entries(YOON_BASE)) {
@@ -104,7 +130,7 @@ function buildKana() {
       out.push({ id: "ka-" + pre + v + "-y", kana: base + sm, romaji: pre + v,
         row: "yoon", type: "katakana", hira: YOON_HIRA[base] + smh,
         mnemonic: "i-column kana + small " + sm + ". The i-vowel drops and glides into " + v + ".",
-        confuse: [] });
+        confuse: [], strokes: baseStrokes(base) + (SMALL_STROKES[sm] || 0) });
     }
   }
   return out;

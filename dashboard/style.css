@@ -150,3 +150,26 @@ td .jp{font-size:16px}
 .pad{padding:50px 0}
 @media (max-width:900px){nav{width:62px;flex:0 0 62px}nav .brand small,nav button span,nav .foot{display:none}
   main{padding:22px 16px 70px}.cols4,.cols3{grid-template-columns:repeat(2,1fr)}}
+
+/* ---- handwriting pad + touchscreen affordances ---- */
+.pad{width:min(62vw,300px);max-width:100%;background:var(--bg3);border:1px solid var(--line);
+  border-radius:10px;display:block;margin:0 auto;touch-action:none;cursor:crosshair}
+.pad-lg{width:min(86vw,380px)}
+.pad-btn{padding:9px 15px !important;font-size:13px}
+
+/* On a coarse pointer every target grows. A 13px link is fine with a mouse and useless with a
+   thumb; the WCAG floor is 44px and tapping the wrong grade corrupts the SRS schedule. */
+@media (pointer: coarse){
+  nav button{padding:14px 18px;font-size:15px}
+  .btn{padding:13px 20px;font-size:15px}
+  .grades button{padding:17px 0;font-size:15px}
+  .kcell{padding:13px 4px}
+  .kcell .c{font-size:34px}
+  .blk{padding:15px 14px}
+  .gitem > summary{padding:16px}
+  td{padding:13px 10px}
+  .q input{font-size:34px;width:min(78vw,300px)}
+  details summary{min-height:30px}
+}
+/* a stylus is a fine pointer on a touch device — do not shrink anything back */
+@media (pointer: coarse) and (hover: hover){ .btn{padding:13px 20px} }

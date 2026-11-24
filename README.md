@@ -67,6 +67,17 @@ as the separate skills they are. Daily new-card intake is capped so the backlog 
 accuracy), control of dakuten / yōon / small っ / long vowels, and particle pronunciation. It
 branches into a real verdict and changes the plan if you fail a phase.
 
+**The writing pad** — a handwriting canvas driven by Pointer Events, so a finger, a stylus or a
+mouse all work. It ghosts the model character underneath, draws with pen pressure where the
+hardware reports it, and checks your **stroke count** against the character's true count — the one
+objective signal available without shipping a recogniser, and the one that catches stroke-order
+faults every time. It appears inside SRS production cards as well as in its own practice view.
+
+**Audio** — listening and shadowing through the browser's own speech synthesiser: no files to ship,
+no network, no API key. Blind-listening drills train segmentation; shadowing trains mora timing.
+If no Japanese voice is installed the app says so and tells you how to add one, rather than failing
+silently.
+
 **The worksheets** — print-first A4 tracing sheets for katakana and kanji, plus blank genkōyōshi.
 They request *UD Digi Kyokasho*, the Japanese school-textbook font bundled with Windows 11, so you
 trace handwritten letterforms rather than print ones.

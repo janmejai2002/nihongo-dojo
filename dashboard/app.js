@@ -61,13 +61,17 @@ function allCards() {
     out.push({ id: k.id + ':recognise', kind: 'kana', mode: 'recognise', typed: true,
       q: k.kana, a: k.romaji, hint: k.mnemonic, extra: 'hiragana twin: ' + (k.hira || '—'), size: 'xl' });
     out.push({ id: k.id + ':produce', kind: 'kana', mode: 'produce', typed: false,
-      q: k.romaji, a: k.kana, hint: k.mnemonic, extra: '', size: 'en' });
+      q: k.romaji, a: k.kana, hint: k.mnemonic, extra: '', size: 'en',
+      glyph: k.kana, expect: k.strokes });
   }
   for (const k of window.KANJI) {
     if (k.sprint > sp) continue;
     out.push({ id: k.id + ':recognise', kind: 'kanji', mode: 'recognise', typed: false,
       q: k.char, a: k.keyword, hint: k.mnemonic,
       extra: 'parts: ' + k.components.join(' ') + ' · ' + k.strokes + ' strokes', size: 'xl' });
+    out.push({ id: k.id + ':write', kind: 'kanji', mode: 'write', typed: false,
+      q: k.keyword, a: k.char, hint: 'parts: ' + k.components.join(' ') + ' — ' + k.mnemonic,
+      extra: (k.words[0] ? k.words[0].jp : ''), size: 'en', glyph: k.char, expect: k.strokes });
     (k.words || []).forEach(function (w, i) {
       out.push({ id: k.id + ':w' + i, kind: 'kanji', mode: 'reading', typed: false,
         q: plain(w.jp), a: w.reading + '  —  ' + w.en, hint: '', extra: k.char + ' = ' + k.keyword, size: 'lg' });
@@ -258,6 +262,12 @@ window.toggleBlock = function (id) {
 let Q = null;     // {queue:[], i:0, results:[]}
 let revealed = false;
 let sessionStart = 0;
+// handwriting pad: on by default on a touchscreen, off on a mouse-only machine where drawing
+// a kanji with a trackpad is a worse experience than not having the feature at all
+let handOn = (S.settings && typeof S.settings.hand === 'boolean')
+  ? S.settings.hand
+  : (window.Hand ? Hand.isTouch() : false);
+let handGhost = false;
 
 VIEWS.review = function () {
   if (!Q) {
@@ -312,6 +322,8 @@ VIEWS.review = function () {
   const qcls = c.size === 'xl' ? 'prompt-xl jp' : c.size === 'lg' ? 'prompt-lg jp'
     : c.size === 'md' ? 'prompt-md jp' : 'prompt-en';
   const qhtml = (c.jpq || c.size !== 'en') ? ruby(c.q) : esc(c.q);
+  // what to pronounce: whichever side of the card carries the Japanese
+  const sayText = c.jpa ? c.a : (c.kind === 'kana' ? '' : (c.jpq || c.size !== 'en') ? c.q : '');
 
   return `
   <div id="review">
@@ -321,15 +333,31 @@ VIEWS.review = function () {
     }).join('')}</div>
     <div class="row small dim" style="justify-content:space-between;margin-bottom:10px">
       <span><span class="tag">${kindLabel}</span> <span class="tag">${modeLabel}</span></span>
-      <span>${Q.i + 1} / ${Q.queue.length}${cardState(c.id) ? '' : ' · new'}</span>
+      <span>
+        <a onclick="toggleHand()" style="cursor:pointer;text-decoration:underline">${handOn ? 'pad on' : 'pad off'}</a>
+        · ${Q.i + 1} / ${Q.queue.length}${cardState(c.id) ? '' : ' · new'}</span>
     </div>
     <div class="q">
       <div class="${qcls}">${qhtml}</div>
       ${!revealed && c.typed ? `<input id="typed" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="romaji">` : ''}
+      ${c.glyph && handOn ? `
+        <canvas id="pad" class="pad"></canvas>
+        <div class="row" style="justify-content:center;gap:7px">
+          <button class="btn ghost pad-btn" onclick="Hand.undo()">Undo stroke</button>
+          <button class="btn ghost pad-btn" onclick="Hand.clear()">Clear</button>
+          <button class="btn ghost pad-btn" onclick="toggleGhost()">${handGhost ? 'Hide' : 'Show'} model</button>
+        </div>
+        <div class="small" id="strokes" style="min-height:20px">${revealed
+          ? strokeVerdict(c._strokeCount || 0, c.expect)
+          : '<span class="dim">' + (c.expect ? 'write it before you reveal' : 'write it before you reveal') + '</span>'}</div>` : ''}
       ${revealed ? `<div class="ans">${c.jpa ? '<span class="jp">' + ruby(c.a) + '</span>' : esc(c.a)}</div>` : ''}
       ${revealed && c.hint ? `<div class="mn">${esc(c.hint)}</div>` : ''}
       ${revealed && c.extra ? `<div class="exw">${ruby(c.extra)}</div>` : ''}
     </div>
+    ${revealed && sayText && Audio_.available() ? `<div class="row" style="justify-content:center;margin-top:10px">
+      <button class="btn ghost small" style="padding:5px 12px" onclick="say(${JSON.stringify(sayText)})">▶ hear it <span class="dim">· p</span></button>
+      ${c.extra && /[ぁ-んァ-ヶ一-龠]/.test(c.extra) ? `<button class="btn ghost small" style="padding:5px 12px" onclick="say(${JSON.stringify(c.extra)})">▶ in context</button>` : ''}
+    </div>` : ''}
     ${revealed ? `<div class="grades">
       <button class="g0" onclick="ans(0)">Again<small>1 · forgot</small></button>
       <button class="g1" onclick="ans(1)">Hard<small>2</small></button>
@@ -346,12 +374,35 @@ VIEWS.review = function () {
 afterRender.review = function () {
   const t = document.getElementById('typed');
   if (t) { t.focus(); t.onkeydown = function (e) { if (e.key === 'Enter') reveal(); }; }
+
+  const pad = document.getElementById('pad');
+  if (pad) {
+    const c = Q.queue[Q.i];
+    Hand.mount(pad, {
+      glyph: c.glyph,
+      expected: c.expect,
+      ghost: revealed ? true : handGhost,   // after revealing, always show the model to compare against
+      grid: true,
+      onStroke: function (n) {
+        const el = document.getElementById('strokes');
+        if (el && !revealed) el.innerHTML = '<span class="dim">' + n + ' stroke' + (n === 1 ? '' : 's') + ' so far</span>';
+      }
+    });
+    if (c._strokeData) Hand.setStrokes(c._strokeData);
+  }
 };
+window.toggleGhost = function () { handGhost = !handGhost; Hand.setGhost(handGhost); render(); };
+window.toggleHand = function () { handOn = !handOn; S.settings.hand = handOn; save(); render(); };
+
 window.reveal = function () {
   const c = Q.queue[Q.i];
   if (c && c.typed) {
     const t = document.getElementById('typed');
     if (t) { c._typedVal = t.value.trim().toLowerCase(); }
+  }
+  if (c && c.glyph && document.getElementById('pad')) {
+    c._strokeCount = Hand.count();
+    c._strokeData = Hand.getStrokes();
   }
   revealed = true; render();
 };
@@ -727,6 +778,304 @@ VIEWS.plan = function () {
     <code>curriculum/ROADMAP.md</code>. Pedagogical standards: <code>CLAUDE.md</code>.
   </div>`;
 };
+
+/* ---------- view: write ----------
+   Freeform handwriting practice on the touchscreen. The printed worksheets still matter — paper
+   gives resistance and a fixed size, and the motor trace from a pen is not identical to the one
+   from a fingertip. But this removes every excuse: no printer, no paper, no desk needed. */
+let writeSet = 'kana';
+let writeIdx = 0;
+
+function writeDeck() {
+  if (writeSet === 'kana') return window.KANA.filter(function (k) { return k.row !== 'yoon'; })
+    .map(function (k) { return { ch: k.kana, label: k.romaji, strokes: k.strokes, note: k.mnemonic }; });
+  return window.KANJI.filter(function (k) { return k.sprint <= S.sprint; })
+    .map(function (k) { return { ch: k.char, label: k.keyword, strokes: k.strokes,
+      note: k.components.join(' ') + ' — ' + k.mnemonic }; });
+}
+
+VIEWS.write = function () {
+  const deck = writeDeck();
+  if (writeIdx >= deck.length) writeIdx = 0;
+  const touch = Hand.isTouch();
+
+  if (!deck.length) {
+    return `<h1>書く — writing pad</h1>
+    <div class="sub">Nothing in this set is unlocked yet.</div>
+    <div class="row" style="margin-bottom:14px">
+      <button class="btn ${writeSet === 'kana' ? '' : 'ghost'}" onclick="setWriteSet('kana')">Kana</button>
+      <button class="btn ${writeSet === 'kanji' ? '' : 'ghost'}" onclick="setWriteSet('kanji')">Kanji</button>
+    </div>
+    <div class="card center pad">
+      <div class="jp" style="font-size:42px">まだです</div>
+      <p class="muted">Kanji unlock in Sprint 2. There are ${window.KANJI.length} of them loaded and
+      waiting — but katakana comes first, and writing kanji before you can read kana is building the
+      second floor before the first.</p>
+      <button class="btn" onclick="setWriteSet('kana')">Practise kana instead</button>
+    </div>`;
+  }
+
+  const it = deck[writeIdx];
+
+  return `
+  <h1>書く — writing pad</h1>
+  <div class="sub">${touch ? 'Touchscreen detected — use a finger or a stylus.'
+    : 'No touchscreen detected on this device; a mouse works but is a poor substitute.'}
+    Stroke count is checked; everything else you judge against the model yourself.</div>
+
+  <div class="row" style="margin-bottom:14px">
+    <button class="btn ${writeSet === 'kana' ? '' : 'ghost'}" onclick="setWriteSet('kana')">Kana</button>
+    <button class="btn ${writeSet === 'kanji' ? '' : 'ghost'}" onclick="setWriteSet('kanji')">Kanji (${window.KANJI.filter(function (k) { return k.sprint <= S.sprint; }).length})</button>
+    <span style="flex:1"></span>
+    <button class="btn ghost" onclick="writeJump(-1)">← Previous</button>
+    <button class="btn ghost" onclick="writeJump(1)">Next →</button>
+    <button class="btn ghost" onclick="writeRandom()">Random</button>
+  </div>
+
+  <div class="row" style="align-items:flex-start;gap:22px">
+    <div style="flex:0 0 auto">
+      <canvas id="wpad" class="pad pad-lg"></canvas>
+      <div class="row" style="justify-content:center;gap:7px;margin-top:9px">
+        <button class="btn ghost pad-btn" onclick="Hand.undo()">Undo</button>
+        <button class="btn ghost pad-btn" onclick="Hand.clear()">Clear</button>
+        <button class="btn ghost pad-btn" onclick="wGhost()">${handGhost ? 'Hide' : 'Show'} model</button>
+      </div>
+      <div class="center small" id="wstroke" style="margin-top:9px;min-height:40px">
+        <span class="dim">${it.strokes} stroke${it.strokes === 1 ? '' : 's'} expected</span></div>
+    </div>
+    <div style="flex:1;min-width:220px">
+      <div class="card">
+        <div class="row" style="align-items:center;gap:16px">
+          <div class="jp" style="font-size:66px;line-height:1">${it.ch}</div>
+          <div>
+            <div style="font-size:19px;font-weight:600">${esc(it.label)}</div>
+            <div class="small dim">${it.strokes} strokes · ${writeIdx + 1} of ${deck.length}</div>
+          </div>
+        </div>
+        <div class="small muted" style="margin-top:12px">${esc(it.note)}</div>
+      </div>
+      <div class="card small" style="margin-top:10px">
+        <strong>Stroke order, the five rules that cover almost everything:</strong>
+        <ol style="margin:7px 0 0;padding-left:18px">
+          <li>Top to bottom.</li>
+          <li>Left to right.</li>
+          <li>Horizontal before the vertical that crosses it (十 is 一 then 丨).</li>
+          <li>Outside enclosure before its contents — but the closing bottom stroke comes last (口, 国).</li>
+          <li>A centre stroke before its symmetrical wings (小, 水).</li>
+        </ol>
+        <p class="dim" style="margin:9px 0 0">Order is not etiquette. It determines the shape the
+        character takes when written at speed, it is how a dictionary looks a character up by
+        stroke, and it is what makes handwriting legible to a reader rather than merely accurate.</p>
+      </div>
+    </div>
+  </div>`;
+};
+afterRender.write = function () {
+  const pad = document.getElementById('wpad');
+  if (!pad) return;
+  const deck = writeDeck();
+  const it = deck[writeIdx];
+  if (!it) return;
+  Hand.mount(pad, { glyph: it.ch, expected: it.strokes, ghost: handGhost, grid: true,
+    onStroke: function (n) {
+      const el = document.getElementById('wstroke');
+      if (el) el.innerHTML = n === 0
+        ? '<span class="dim">' + it.strokes + ' strokes expected</span>'
+        : strokeVerdict(n, it.strokes);
+    } });
+};
+window.setWriteSet = function (s) { writeSet = s; writeIdx = 0; render(); };
+window.writeJump = function (d) { const n = writeDeck().length; writeIdx = (writeIdx + d + n) % n; render(); };
+window.writeRandom = function () { writeIdx = Math.floor(Math.random() * writeDeck().length); render(); };
+window.wGhost = function () { handGhost = !handGhost; render(); };
+
+/* ---------- view: reading ----------
+   Furigana is hideable, and hiding it is the default after Sprint 2. Reading with permanent
+   furigana trains you to read furigana. The kanji has to be the thing you look at. */
+let readFuri = true;
+let readOpen = null;
+
+VIEWS.read = function () {
+  const avail = window.READING.filter(function (r) { return r.sprint <= S.sprint; });
+  const locked = window.READING.filter(function (r) { return r.sprint > S.sprint; });
+  const poems = window.POETRY;
+
+  if (readOpen) {
+    const r = window.READING.find(function (x) { return x.id === readOpen; });
+    return `
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn ghost" onclick="readOpen=null;render()">← All passages</button>
+      <span style="flex:1"></span>
+      <button class="btn ghost" onclick="readFuri=!readFuri;render()">${readFuri ? 'Hide' : 'Show'} furigana</button>
+      ${Audio_.available() ? `<button class="btn ghost" onclick="sayPassage('${r.id}')">▶ Read it aloud</button>` : ''}
+    </div>
+    <h1>${esc(r.title)}</h1>
+    <div class="sub">${esc(r.level)} · sprint ${r.sprint}</div>
+    <div class="card small" style="margin-bottom:16px">${esc(r.blurb)}</div>
+    <div class="card">
+      ${r.lines.map(function (l, i) {
+        return `<div style="margin-bottom:14px">
+          <div class="jp" style="font-size:21px;line-height:${readFuri ? 2.1 : 1.8}">
+            ${readFuri ? ruby(l.jp) : esc(plain(l.jp))}
+            ${Audio_.available() ? `<button class="btn ghost" style="padding:1px 7px;font-size:11px;vertical-align:middle"
+              onclick="say(${JSON.stringify(l.jp)})">▶</button>` : ''}</div>
+          <details style="margin-top:2px"><summary class="small dim" style="cursor:pointer">translation</summary>
+            <div class="small muted">${esc(l.en)}</div></details>
+        </div>`; }).join('')}
+    </div>
+    ${r.newWords.length ? `<h2>New in this passage</h2>
+      <div class="card small"><div class="wordlist">${r.newWords.map(function (w) {
+        return '<div class="w">' + ruby(w[0]) + ' <em>' + esc(w[1]) + '</em></div>'; }).join('')}</div></div>` : ''}
+    <h2>Questions — answer before you open them</h2>
+    ${r.questions.map(function (q) {
+      return `<details class="gitem"><summary>${esc(q.q)}</summary>
+        <div class="gbody small">${esc(q.a)}</div></details>`; }).join('')}
+    <div class="card small" style="margin-top:16px">
+      <strong>How to read this properly.</strong> Read the whole thing once without stopping, even
+      where you do not understand — tolerating ambiguity is a trainable skill and it is the one that
+      makes real material survivable. Then read it again and look things up. Then read it a third
+      time out loud. Three passes beats one careful pass, every time.
+    </div>`;
+  }
+
+  return `
+  <h1>読解 — reading</h1>
+  <div class="sub">${avail.length} passage${avail.length === 1 ? '' : 's'} at your level.
+    Comprehensible input is the engine; drills are only the index.</div>
+  <div class="grid cols3">
+    ${avail.map(function (r) {
+      return `<div class="card" style="cursor:pointer" onclick="readOpen='${r.id}';render()">
+        <div class="jp" style="font-size:22px">${esc(r.title)}</div>
+        <div class="small dim">${esc(r.level)} · ${r.lines.length} lines</div>
+        <div class="small muted" style="margin-top:7px">${esc(r.blurb.slice(0, 110))}…</div></div>`;
+    }).join('')}
+  </div>
+  ${locked.length ? `<h2>Locked</h2><div class="grid cols3">${locked.map(function (r) {
+    return `<div class="card" style="opacity:.42"><div class="jp" style="font-size:22px">${esc(r.title)}</div>
+      <div class="small dim">${esc(r.level)} · unlocks sprint ${r.sprint}</div></div>`; }).join('')}</div>` : ''}
+
+  <h2>詩 — poetry</h2>
+  <div class="card small" style="margin-bottom:12px">
+    These unlock formally in Sprint 6, but they are here from the start on purpose. Seventeen
+    syllables of complete, grammatical, memorisable Japanese is the best argument anyone has ever
+    made for learning this language — and a haiku is short enough to hold in your head whole, which
+    is worth more than another twenty flashcards.
+  </div>
+  ${poems.map(function (p) {
+    return `<div class="card" style="margin-bottom:10px">
+      <div class="row" style="align-items:flex-start;gap:26px">
+        <div class="jp" style="font-size:23px;line-height:2.2;min-width:210px">
+          ${p.jp.map(function (l) { return readFuri ? ruby(l) : esc(plain(l)); }).join('<br>')}
+        </div>
+        <div style="flex:1">
+          <div class="small dim">${p.romaji.join(' / ')}</div>
+          <div class="muted" style="margin:6px 0 10px;font-size:15px">${esc(p.en)}</div>
+          <div class="small">${esc(p.note)}</div>
+          <div class="small dim" style="margin-top:8px">${esc(p.author)}</div>
+        </div>
+        ${Audio_.available() ? `<button class="btn ghost" style="padding:4px 10px"
+          onclick="say(${JSON.stringify(p.jp.join('、'))}, 0.75)">▶</button>` : ''}
+      </div></div>`;
+  }).join('')}`;
+};
+window.sayPassage = function (id) {
+  const r = window.READING.find(function (x) { return x.id === id; });
+  say(r.lines.map(function (l) { return plain(l.jp); }).join(' '), 0.9);
+};
+
+/* ---------- view: listening & shadowing ----------
+   Two drills on one corpus. Blind listening trains segmentation — the ability to hear where one
+   word stops and the next starts, which is the actual bottleneck in JLPT listening sections and
+   which reading practice does nothing for. Shadowing trains production timing: you speak over the
+   model with a short lag, which forces mora-level rhythm you cannot get from reading aloud. */
+let L = null;
+let listenRate = 0.9;
+let listenBlind = true;
+
+function listenCorpus() {
+  const out = [];
+  window.VOCAB.filter(function (v) { return v.sprint <= S.sprint; }).forEach(function (v) {
+    out.push({ jp: v.sentence.jp, en: v.sentence.en, src: plain(v.jp) });
+  });
+  window.GRAMMAR.filter(function (g) { return g.sprint <= S.sprint; }).forEach(function (g) {
+    g.examples.forEach(function (e) { out.push({ jp: e.jp, en: e.en, src: g.title }); });
+  });
+  return out;
+}
+
+VIEWS.listen = function () {
+  const corpus = listenCorpus();
+  if (!L) L = { queue: shuffle(corpus), i: 0, shown: false };
+  if (L.i >= L.queue.length) L = { queue: shuffle(corpus), i: 0, shown: false };
+  const it = L.queue[L.i];
+
+  return `
+  <h1>聴解 — listening &amp; shadowing</h1>
+  <div class="sub">${corpus.length} sentences at your current level. ${audioStatus()}</div>
+  ${audioWarning()}
+
+  <div class="row" style="margin-bottom:14px">
+    <button class="btn ${listenBlind ? '' : 'ghost'}" onclick="setBlind(true)">Blind listening</button>
+    <button class="btn ${listenBlind ? 'ghost' : ''}" onclick="setBlind(false)">Shadowing</button>
+    <span style="flex:1"></span>
+    <span class="small dim">speed</span>
+    ${[0.7, 0.85, 1.0, 1.15].map(function (r) {
+      return `<button class="btn ghost small" style="padding:6px 11px${listenRate === r ? ';border-color:var(--aka);color:var(--ink)' : ''}"
+        onclick="setRate(${r})">${r === 1.0 ? '1.0×' : r + '×'}</button>`; }).join('')}
+  </div>
+
+  <div class="q" style="min-height:200px">
+    ${listenBlind && !L.shown
+      ? `<div class="prompt-en dim">Listen. Do not read.</div>
+         <div class="small dim">Play it three times before you reveal anything.<br>
+           First pass: how many words? Second: which ones do you know? Third: what is it saying?</div>`
+      : `<div class="prompt-md jp">${ruby(it.jp)}</div>
+         <div class="muted">${esc(it.en)}</div>`}
+    ${L.shown || !listenBlind ? `<div class="small dim">from: ${esc(it.src)}</div>` : ''}
+  </div>
+
+  <div class="row" style="justify-content:center;margin-top:14px">
+    <button class="btn" onclick="say(${JSON.stringify(it.jp)}, ${listenRate})">▶ Play <span class="dim">· p</span></button>
+    ${listenBlind && !L.shown ? `<button class="btn ghost" onclick="L.shown=true;render()">Reveal <span class="dim">· space</span></button>` : ''}
+    <button class="btn ghost" onclick="nextListen()">Next <span class="dim">· n</span></button>
+  </div>
+  <div class="center small dim" style="margin-top:8px">${L.i + 1} / ${L.queue.length}</div>
+
+  <h2>${listenBlind ? 'How to do blind listening properly' : 'How to shadow properly'}</h2>
+  <div class="card small">
+    ${listenBlind
+      ? `<p style="margin-top:0">Play before you look. Every time you read first, you have trained
+         reading and not listening — and the gap between the two is what fails people at N3, where
+         the listening section is half the paper and runs once at full speed.</p>
+         <p><strong>Three passes, each with its own question.</strong> First pass, count the words —
+         just the boundaries, ignore meaning. Second pass, catch the ones you know. Third pass,
+         assemble. Only then reveal. Chasing meaning on pass one is what makes listening feel
+         impossible; segmentation has to come first and it is a separate skill.</p>
+         <p style="margin-bottom:0">Start at 0.7× this week and climb. By Sprint 5 everything here
+         should be comfortable at 1.15×, because real speech is faster than textbook audio.</p>`
+      : `<p style="margin-top:0">Shadowing is <em>not</em> repeat-after-me. You speak <strong>over</strong>
+         the voice, about half a second behind, while it is still talking. The lag is the point: it
+         leaves no room to translate, so your mouth has to run on motor memory.</p>
+         <p>Play it once to hear it. Then play and speak along, out loud, four or five times.
+         Copy the rhythm and the pitch shape, not just the sounds — Japanese is mora-timed, every
+         beat equal, which is why English speakers stress the wrong part and become hard to follow
+         even with perfect grammar.</p>
+         <p style="margin-bottom:0">Ten sentences a day, five repetitions each. Ten minutes. This is
+         the single highest-return thing you can do for speaking, and almost nobody does it.</p>`}
+  </div>`;
+};
+window.setRate = function (r) { listenRate = r; render(); };
+window.setBlind = function (b) { listenBlind = b; if (L) L.shown = false; render(); };
+window.nextListen = function () { if (L) { L.i++; L.shown = false; } render(); };
+
+document.addEventListener('keydown', function (e) {
+  if (current !== 'listen' || !L) return;
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+  const it = L.queue[L.i];
+  if (e.key === 'p') { e.preventDefault(); say(it.jp, listenRate); }
+  if (e.key === 'n') { e.preventDefault(); nextListen(); }
+  if (e.key === ' ' && listenBlind && !L.shown) { e.preventDefault(); L.shown = true; render(); }
+});
 
 /* ---------- view: placement diagnostic ----------
    Measures what is currently only self-reported. Three phases, no teaching, no feedback

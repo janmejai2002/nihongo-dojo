@@ -81,6 +81,43 @@ run the reading belongs to: `食[た]べる`, not `食べる[たべる]`.
 }
 ```
 
+## Content files and load order
+
+`dashboard/index.html` loads these in order; later files concatenate onto the globals the earlier
+ones create, so order matters.
+
+| File | Global | Holds |
+|---|---|---|
+| `data/kana.js` | `KANA`, `HIRAGANA`, `LOANWORDS` | katakana + derived forms, with `strokes` |
+| `data/placement.js` | `PLACEMENT_WORDS`, `PLACEMENT_PARTICLES` | the session-1 diagnostic |
+| `data/kanji.js` | `KANJI` | 1–80 (sprint 2) |
+| `data/kanji-b.js` | appends | 81–130 (sprint 3) |
+| `data/kanji-c.js` | appends | 131–180 (sprint 3) |
+| `data/vocab.js` | `VOCAB` | N5 core |
+| `data/vocab-n4.js` | appends | N4, sprints 3–8 |
+| `data/grammar.js` | `GRAMMAR` | N5, sprints 1–4 |
+| `data/grammar-n4.js` | appends | N4, sprints 5–8 |
+| `data/reading.js` | `READING`, `POETRY` | graded passages, annotated haiku |
+
+A file that appends must use `window.X = window.X.concat([...])`, never reassign.
+
+## `data/reading.js` → `window.READING`
+
+```js
+{ id: "r-1", sprint: 1, level: "kana only", title: "はじめまして",
+  blurb: "...",                              // why this passage, and how to read it
+  lines: [ { jp: "...", en: "..." } ],       // one sentence per line, furigana in jp
+  newWords: [ ["単語[たんご]", "word"] ],      // what is new here; keep it to a handful (i+1)
+  questions: [ { q: "...", a: "..." } ] }    // about mechanism, not comprehension trivia
+```
+
+## Card fields added for the handwriting pad
+
+A card may carry `glyph` (the character to ghost under the canvas) and `expect` (its true stroke
+count). When `glyph` is present the review screen shows the pad, and on reveal it prints the
+stroke-count verdict. `KANA` entries and `KANJI` entries both carry `strokes`; for derived kana it
+is computed (dakuten +2, handakuten +1, yōon = base + small kana).
+
 ## `learner/progress.json`
 
 ```js
