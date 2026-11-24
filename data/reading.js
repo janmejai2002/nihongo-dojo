@@ -9,7 +9,7 @@ window.READING = [
          "which is exactly why katakana comes first. Find every katakana word before you translate.",
   lines: [
     { jp: "はじめまして。", en: "How do you do." },
-    { jp: "わたしは ジャンメジャイです。", en: "I am Janmejai." },
+    { jp: "わたしは アミットです。", en: "I am Amit." },
     { jp: "インドから きました。", en: "I came from India." },
     { jp: "がくせいです。", en: "I am a student." },
     { jp: "コーヒーが すきです。", en: "I like coffee." },
@@ -19,7 +19,7 @@ window.READING = [
   newWords: [["はじめまして","how do you do"],["きました","came"],["すき","liked"],["どうぞよろしく","pleased to meet you"]],
   questions: [
     { q: "Which three words in this passage are written in katakana, and why those three?",
-      a: "ジャンメジャイ, インド, コーヒー — a foreign name, a foreign country, a loanword. That is the whole rule for katakana in one sentence." },
+      a: "アミット, インド, コーヒー — a foreign name, a foreign country, a loanword. That is the whole rule for katakana in one sentence." },
     { q: "Why is there no word for 'I' in lines 4, 5, 6 and 7?",
       a: "Japanese drops anything recoverable from context. The topic was set in line 2 and stays set until something changes it. English repeats the subject; Japanese considers that noise." }
   ]},

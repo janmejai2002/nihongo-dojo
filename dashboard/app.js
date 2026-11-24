@@ -466,7 +466,7 @@ VIEWS.kana = function () {
       カ is the left part of 加, ロ is 呂, ム is 牟, ニ is 二. Angular because it is a clipping,
       not a flourish. Knowing this stops the shapes feeling arbitrary.</p>
       <p><strong>Where it is used:</strong> loanwords (コーヒー, パソコン), foreign names
-      (インド, ジャンメジャイ), onomatopoeia, scientific names, and emphasis — roughly what italics
+      (インド, アミット), onomatopoeia, scientific names, and emphasis — roughly what italics
       do in English. Which means: every menu, every sign, every product name. This is why it comes
       before kanji.</p>
       <p><strong>Learn it down the columns, not across the alphabet.</strong> ア イ ウ エ オ, then

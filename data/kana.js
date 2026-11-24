@@ -157,5 +157,5 @@ window.LOANWORDS = [
   ["カメラ","camera"],["ペン","pen"],["ノート","notebook"],["ドア","door"],["シャツ","shirt"],
   ["エレベーター","elevator"],["コンビニ","convenience store"],["アルバイト","part-time job"],
   ["クレジットカード","credit card"],["プレゼント","present"],["メール","email"],
-  ["インド","India"],["デリー","Delhi"],["ムンバイ","Mumbai"],["ジャンメジャイ","Janmejai"]
+  ["インド","India"],["デリー","Delhi"],["ムンバイ","Mumbai"],["アミット","Amit"]
 ].map(function (p, i) { return { id: "lw-" + i, kana: p[0], en: p[1] }; });
